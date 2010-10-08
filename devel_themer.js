@@ -91,7 +91,7 @@
   }
 
   function spanify() {
-    $('span.thmr_call')
+    $('[thmr]')
       .each(function () {
         // make spans around block elements into block elements themselves
         var kids = $(this).children();
@@ -128,16 +128,16 @@
   }
 
   /**
-   * Find all parents with class="thmr_call"
+   * Find all parents with @thmr"
    */
   function thmrFindParents(obj) {
     var parents = new Array();
-    if ($(obj).hasClass('thmr_call')) {
+    if ($(obj).attr('thmr') != undefined) {
       parents[parents.length] = obj;
     }
     if (obj && obj.parentNode) {
       while (obj = obj.parentNode) {
-        if ($(obj).hasClass('thmr_call')) {
+        if ($(obj).attr('thmr') != undefined) {
           parents[parents.length] = obj;
         }
       }
@@ -186,7 +186,7 @@
    */
   function thmrRebuildPopup(objs) {
     // rebuild the popup box
-    var id = objs[0].id;
+    var id = objs[0].getAttribute('thmr');
     // vars is the settings array element for this theme item
     var vars = Drupal.settings[id];
     // strs is the translatable strings
@@ -212,7 +212,7 @@
     var parents = '';
     parents = strs.parents +' <span class="parents">';
     for(i=1;i<objs.length;i++) {
-      var pvars = Drupal.settings[objs[i].id];
+      var pvars = Drupal.settings[$(objs[i]).attr('thmr')];
       parents += i!=1 ? '&lt; ' : '';
       // populate the parents
       // each parent is wrapped with a span containing a 'trig' attribute with the id of the element it represents
@@ -245,25 +245,21 @@
     else {
       $('#themer-popup div.duration').empty().prepend('<span class="dt">' + strs.duration + '</span>' + vars.duration + ' ms');
       $('#themer-popup dd.candidates').empty().prepend(vars.candidates.join('<span class="delimiter"> < </span>'));
+      
+      // Use drupal ajax to do what we need 
+      
+      
+      
       uri = Drupal.settings.devel_themer_uri + '/' + id;
-      if (type == 'func') {
-        if (vars.candidates != undefined && vars.candidates.length != 0) {
-          // populate the candidates
-          $('#themer-popup dt.candidates-type').empty().prepend(strs.candidate_functions);
-          // empty the preprocessors - functions don't have them :(
-          $('#themer-popup dd.preprocessors').empty();
-          $('#themer-popup dt.preprocessors-type').empty();
-        }
-        $('#themer-popup div.attributes').empty().load(uri).prepend('<h4>'+ strs.function_arguments + '</h4>');
-        $('#themer-popup div.used').empty();
-      }
-      else {
-        $('#themer-popup dt.candidates-type').empty().prepend(strs.candidate_files);
-        $('#themer-popup dd.preprocessors').empty().prepend(vars.preprocessors.join('<span class="delimiter"> + </span>'));
-        $('#themer-popup dt.preprocessors-type').empty().prepend(strs.preprocessors);
-        $('#themer-popup div.attributes').empty().load(uri).prepend('<h4>'+ strs.template_variables + '</h4>');
-        $('#themer-popup div.used').empty().prepend('<dt>'+ strs.file_used  +'</a></dt><dd><a href="'+ strs.source_link + vars.used +'" title="'+ strs.source_link_title +'">'+ vars.used +'</a></dd>');
-      }
+      vars_div_array = $('div.themer-variables');
+      vars_div = vars_div_array[0];
+      
+      // Programatically using the drupal ajax things is tricky, so cheet.
+      dummy_link = $('<a href="'+uri+'" class="use-ajax">Loading Vars</a>');
+      $(vars_div).append(dummy_link);
+      Drupal.attachBehaviors(vars_div);
+      dummy_link.click();
+      
       thmrRefreshCollapse();
     }
     // stop throbber

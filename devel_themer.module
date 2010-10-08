@@ -31,6 +31,7 @@ function devel_themer_menu() {
   $items['devel_themer/variables'] = array(
     'title' => 'Theme Development AJAX variables',
     'page callback' => 'devel_themer_ajax_variables',
+    'delivery callback' => 'ajax_deliver',
     'access arguments' => array('access devel information'),
     'type' => MENU_CALLBACK,
   );
@@ -48,24 +49,26 @@ function devel_themer_menu() {
  * A chunk of HTML with the devel_print_object() rendering of the variables.
  */
 function devel_themer_ajax_variables($request_id, $call) {
-  $file = file_directory_path('temporary') . "/devel_themer_$request_id";
+  $file = "temporary://devel_themer_$request_id";
   if ($data = unserialize(file_get_contents($file))) {
     $variables = $data[$call]['variables'];
     if (has_krumo()) {
-      print krumo_ob($variables);
+      $content = krumo_ob($variables);
     }
     elseif ($data[$call]['type'] == 'func') {
-      print devel_print_object($variables, NULL, FALSE);
+      $content = $variables;
     }
     else {
-      print devel_print_object($variables, '$', FALSE);
+      $content =  $variables;
     }
+    
   }
   else {
-    print 'Ajax variables file not found. -'. check_plain($file);
+     $content =  'Ajax variables file not found. -'. check_plain($file);
   }
-  $GLOBALS['devel_shutdown'] = FALSE;
-  return;
+
+  $commands[] = ajax_command_replace('div.themer-variables','<div class="themer-variables">' . $content . '</div>');
+  return array('#type' => 'ajax', '#commands' => $commands);
 }
 
 /**
@@ -101,19 +104,8 @@ function devel_themer_init() {
     }
     drupal_add_css($path .'/devel_themer.css');
     drupal_add_js($path .'/devel_themer.js');
-    
-    // The order these last two are loaded is important.
-    if (module_exists('jquery_ui'))
-    {
-      jquery_ui_add('ui.core');
-      jquery_ui_add('ui.mouse');
-      jquery_ui_add('ui.draggable');
-    }
-    else
-    {
-      // drupal_add_js($path_to_devel .'/ui.mouse.js');
-      // drupal_add_js($path_to_devel .'/ui.draggable.js');
-    }
+    drupal_add_js('/misc/ajax.js');
+    drupal_add_library('system','ui.draggable');
     
     // This needs to happen after all the other CSS.
     drupal_add_css('<!--[if IE]>
@@ -129,25 +121,6 @@ function devel_themer_init() {
 
 function devel_themer_shutdown() {
   print devel_themer_log();
-}
-
-/**
- * An implementation of hook_theme_registry_alter()
- * Iterate over theme registry, injecting our catch function into every theme call, including template calls.
- * The catch function logs theme calls and performs divine nastiness.
- *
- * @return void
- **/
-function devel_themer_theme_registry_alter($theme_registry) {
-  foreach ($theme_registry as $hook => $data) {
-    if (isset($theme_registry[$hook]['function'])) {
-      // If the hook is a function, store it so it can be run after it has been intercepted.
-      // This does not apply to template calls.
-      $theme_registry[$hook]['devel_function_intercept'] = $theme_registry[$hook]['function'];
-    }
-    // Add  our catch function to intercept functions as well as templates.
-    $theme_registry[$hook]['function'] = 'devel_themer_catch_function';
-  }
 }
 
 /**
@@ -215,82 +188,42 @@ function devel_themer_get_extension() {
  * Intercepts all theme calls (including templates), adds to template log, and dispatches to original theme function.
  * This function gets injected into theme registry in devel_exit().
  */
-function devel_themer_catch_function() {
-  $args = func_get_args();
+function devel_themer_preprocess(&$variables,$hook) {
+  //var_dump($variables);
 
   // Get the function that is normally called.
   $trace = debug_backtrace();
-  $hook = $trace[2]['args'][0];
-  array_unshift($args, $hook);
-
+  //$hook = $trace[2]['args'];
+  //var_dump($hook);
   $counter = devel_counter();
-  $timer_name = "thmr_$counter";
-  timer_start($timer_name);
 
-  // The twin of theme(). All rendering done through here.
-  list($return, $meta) = call_user_func_array('devel_themer_theme_twin', $args);
-  $time = timer_stop($timer_name);
-
-  $skip_calls = array('hidden', 'form_element', 'placeholder');
-  if (!empty($return) && !is_array($return) && !is_object($return) && user_access('access devel information')) {
-    list($prefix, $suffix) = devel_theme_call_marker($hook, $counter, 'func');
-    $start_return = substr($return, 0, 31);
-    $start_prefix = substr($prefix, 0, 31);
-
-    if ($start_return != $start_prefix && !in_array($hook, $skip_calls) && empty($GLOBALS['devel_themer_stop'])) {
-      if ($hook == 'page') {
-        $GLOBALS['devel_theme_calls']['page_id'] = $counter;
-        // Stop logging theme calls after we see theme('page'). This prevents
-        // needless logging of devel module's query log, for example. Other modules may set this global as needed.
-        $GLOBALS['devel_themer_stop'] = TRUE;
-      }
-      else {
-        $output = $prefix. "\n  ". $return. $suffix. "\n";
-      }
-
-      if ($meta['type'] == 'func') {
-        $name = $meta['used'];
-        $used = $meta['used'];
-        if (empty($meta['wildcards'])) {
-          $meta['wildcards'][$hook] = '';
-        }
-        $candidates = devel_themer_ancestry(array_reverse(array_keys($meta['wildcards'])));
-        if (empty($meta['variables'])) {
-          $variables = array();
-        }
-      }
-      else {
-        $name = $meta['used']. devel_themer_get_extension();
-        if (empty($suggestions)) {
-          array_unshift($meta['suggestions'], $meta['used']);
-        }
-        $candidates = array_reverse(array_map('devel_themer_append_extension', $meta['suggestions']));
-        $used = $meta['template_file'];
-      }
-
-      $key = "thmr_$counter";
-      // This variable gets sent to the browser in Drupal.settings.
-      $GLOBALS['devel_theme_calls'][$key] = array(
-        'name' => $name,
-        'type' => $meta['type'],
-        'duration' => $time['time'],
-        'used' => $used,
-        'candidates' => $candidates,
-        'preprocessors' => isset($meta['preprocessors']) ? $meta['preprocessors'] : array(),
+  //list($return, $meta) = call_user_func_array('devel_themer_theme_twin', $args);
+  //$time = timer_stop($timer_name);
+  
+ // var_dump(array_keys($variables));
+  //var_dump($variables['id']);
+  
+  
+  $candidates = "";
+  $used = "";
+  $key = "thmr_$counter";
+  $GLOBALS['devel_theme_calls'][$key] = array(
+    'name' => $hook,
+    'type' => 'test',
+    'duration' => 0,
+    'used' => $used,
+    'candidates' => $variables['theme_hook_suggestions'],
+    'preprocessors' => array(),
       );
 
-      // This variable gets serialized and cached on the server.
-      $GLOBALS['devel_themer_server'][$key] = array(
-        'variables' => $meta['variables'],
-        'type' => $meta['type'],
-      );
-    }
-    else {
-      $output = $return;
-    }
-  }
-
-  return isset($output) ? $output : $return;
+  // This variable gets serialized and cached on the server.
+  $GLOBALS['devel_themer_server'][$key] = array(
+    'variables' => $variables,
+    'type' => 'test_type',
+  );
+  // Set a key on content so we can identify it later
+  $variables['attributes_array']['thmr'] = $key;
+  
 }
 
 function devel_themer_append_extension($string) {
@@ -329,167 +262,17 @@ function devel_themer_ancestry($calls) {
   return array_reverse($candidates);
 }
 
-/**
- * An unfortunate copy/paste of theme(). This one is called by the devel_themer_catch_function()
- * and processes all theme calls but gives us info about the candidates, timings, etc. Without this twin,
- * it was impossible to capture calls to module owned templates (e.g. user_profile) and awkward to determine
- * which template was finally called and how long it took.
- *
- * @return array
- *   A two element array. First element contains the HTML from the theme call. The second contains
- *   a metadata array about the call.
- *
- **/
-function devel_themer_theme_twin() {
-  $args = func_get_args();
-  $hook = array_shift($args);
-
-  static $hooks = NULL;
-  if (!isset($hooks)) {
-    drupal_theme_initialize();
-    $hooks = theme_get_registry();
-  }
-
-  // Gather all possible wildcard functions.
-  $meta['wildcards'] = array();
-  if (is_array($hook)) {
-    foreach ($hook as $candidate) {
-      $meta['wildcards'][$candidate] = FALSE;
-      if (isset($hooks[$candidate])) {
-        $meta['wildcards'][$candidate] = TRUE;
-        break;
-      }
-    }
-    $hook = $candidate;
-  }
-
-  // This should not be needed but some users are getting errors. See http://drupal.org/node/209929
-  if (!isset($hooks[$hook])) {
-    return array('', $meta);
-  }
-
-  $info = $hooks[$hook];
-  $meta['hook'] = $hook;
-  $meta['path'] = $info['theme path'];
-
-  if (isset($info['devel_function_intercept'])) {
-    // The theme call is a function.
-    $output = call_user_func_array($info['devel_function_intercept'], $args);
-    $meta['type'] = 'func';
-    $meta['used'] = $info['devel_function_intercept'];
-    // Try to populate the keys of $args with variable names. Works on PHP5+.
-    if (!empty($args) && class_exists('ReflectionFunction')) {
-      $reflect = new ReflectionFunction($info['devel_function_intercept']);
-      $params = $reflect->getParameters();
-      for ($i=0; $i < count($args); $i++) {
-        // The implementation of the theme function may recieve less parameters than were passed to it.
-        if ($i < count($params)) {
-          $meta['variables'][$params[$i]->getName()] = $args[$i];
-        }
-        else {
-          // @TODO:  Consider informing theme developers of theme functions were passed more arguments than
-          //         were declared in the functio signature.
-          //         This could be disabled by default, with an option to
-          //         enable at admin/config/development/devel_themer.  Given this is a theme developer module
-          //         used by implementors of theme override functions, it would probably be a useful
-          //         default feature.
-          $meta['variables'][] = $args[$i];
-        }
-      }
-    }
-    else {
-      $meta['variables'] = $args;
-    }
-  }
-  else {
-    // The theme call is a template.
-    $meta['type'] = 'tpl';
-    $meta['used'] = str_replace($info['theme path'] .'/', '', $info['template']);
-    $variables = array(
-      'template_files' => array()
-    );
-    if (!empty($info['arguments'])) {
-      $count = 0;
-      foreach ($info['arguments'] as $name => $default) {
-        $variables[$name] = isset($args[$count]) ? $args[$count] : $default;
-        $count++;
-      }
-    }
-
-    // default render function and extension.
-    $render_function = 'theme_render_template';
-    $extension = '.tpl.php';
-
-    // Run through the theme engine variables, if necessary
-    global $theme_engine;
-    if (isset($theme_engine)) {
-      // If theme or theme engine is implementing this, it may have
-      // a different extension and a different renderer.
-      if ($info['type'] != 'module') {
-        if (function_exists($theme_engine .'_render_template')) {
-          $render_function = $theme_engine .'_render_template';
-        }
-        $extension_function = $theme_engine .'_extension';
-        if (function_exists($extension_function)) {
-          $extension = $extension_function();
-        }
-      }
-    }
-
-    if (isset($info['preprocess functions']) && is_array($info['preprocess functions'])) {
-      // This construct ensures that we can keep a reference through
-      // call_user_func_array.
-      $args = array(&$variables, $hook);
-      foreach ($info['preprocess functions'] as $preprocess_function) {
-        if (function_exists($preprocess_function)) {
-          call_user_func_array($preprocess_function, $args);
-        }
-      }
-    }
-
-    // Get suggestions for alternate templates out of the variables
-    // that were set. This lets us dynamically choose a template
-    // from a list. The order is FILO, so this array is ordered from
-    // least appropriate first to most appropriate last.
-    $suggestions = array();
-
-    if (isset($variables['template_files'])) {
-      $suggestions = $variables['template_files'];
-    }
-    if (isset($variables['template_file'])) {
-      $suggestions[] = $variables['template_file'];
-    }
-
-    if ($suggestions) {
-      $template_file = drupal_discover_template($info['theme paths'], $suggestions, $extension);
-    }
-
-    if (empty($template_file)) {
-      $template_file = $info['template'] . $extension;
-      if (isset($info['path'])) {
-        $template_file = $info['path'] .'/'. $template_file;
-      }
-    }
-    $output = $render_function($template_file, $variables);
-    $meta['suggestions'] = $suggestions;
-    $meta['template_file'] = $template_file;
-    $meta['variables'] = $variables;
-    $meta['preprocessors'] = $info['preprocess functions'];
-  }
-
-  return array($output, $meta);
-}
-
 // We save the huge js array here instead of hook_footer so we can catch theme('page')
 function devel_themer_exit() {
+  // TODO: limit to html pages only $router_item = menu_get_item();
+  //delivery_callback
   if (!empty($GLOBALS['devel_theme_calls']) && $_SERVER['REQUEST_METHOD'] != 'POST') {
     // A random string that is sent to the browser. It enables the popup to retrieve params/variables from this request.
     $request_id = uniqid(rand());
     // Write the variables information to the a file. It will be retrieved on demand via AJAX.
     // We used to write this to DB but was getting 'Warning: Got a packet bigger than 'max_allowed_packet' bytes'
     // Writing to temp dir means we don't worry about folder existence/perms and cleanup is free.
-    file_put_contents(file_directory_path('temporary') . "/devel_themer_$request_id", serialize($GLOBALS['devel_themer_server']));
-
+   file_save_data(serialize($GLOBALS['devel_themer_server']),"temporary://devel_themer_$request_id",FILE_EXISTS_REPLACE);
     $GLOBALS['devel_theme_calls']['request_id'] = $request_id;
     $GLOBALS['devel_theme_calls']['devel_themer_uri'] = url("devel_themer/variables/$request_id");
     print '<script type="text/javascript">jQuery.extend(Drupal.settings, '.  drupal_json_encode($GLOBALS['devel_theme_calls']) .");</script>\n";
@@ -582,7 +365,7 @@ function devel_themer_popup() {
         </dl>
       </div><!-- /info -->
       <div class="attributes row">
-
+      <div class="themer-variables"></div>
       </div><!-- /attributes -->
     </div><!-- /themer-popup -->
     </div>
@@ -603,8 +386,11 @@ EOT;
  *   void.
  */
 function devel_themer_cleanup() {
-  foreach (array_keys(file_scan_directory(file_directory_path('temporary'), 'devel_themer_*', array('.', '..', 'CVS'), 0, FALSE)) as $file) {
-    file_delete($file);
+  foreach (array_keys(file_scan_directory('temporary://', '/^devel_themer_/', array('.', '..', 'CVS'), 0, FALSE)) as $file) {
+    $fid = db_query('SELECT fid FROM {file_managed} WHERE uri = :uri', array(':uri' => "temporary://$file"))->fetchField();
+    if (!empty($fid)) {
+      file_delete($file);
+    }
   }
 }
 
