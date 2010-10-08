@@ -1,0 +1,7 @@
+DEVEL_THEMER
+
+This is a branch of the devel themer module, it is an attempt to get the theme_developer module working in drupal7.
+
+It different from the D6 version in trying to use API functionality rather than overriding the default theme function. 
+
+It is in no way intended for widespread use yet. It functionality is very limited and potentially dangerous. Please use with care.
