@@ -189,8 +189,11 @@ function devel_themer_get_extension() {
  * This function gets injected into theme registry in devel_exit().
  */
 function devel_themer_preprocess(&$variables,$hook) {
-  //var_dump($variables);
-
+  // If this item has been processed by a pre render hook do nothing
+  if(isset($variables['#devel_themer'])) {
+    return;
+  }
+  
   // Get the function that is normally called.
   $trace = debug_backtrace();
   //$hook = $trace[2]['args'];
@@ -198,7 +201,7 @@ function devel_themer_preprocess(&$variables,$hook) {
   $counter = devel_counter();
 
   //list($return, $meta) = call_user_func_array('devel_themer_theme_twin', $args);
-  //$time = timer_stop($timer_name);
+
   
  // var_dump(array_keys($variables));
   //var_dump($variables['id']);
@@ -207,6 +210,7 @@ function devel_themer_preprocess(&$variables,$hook) {
   $candidates = "";
   $used = "";
   $key = "thmr_$counter";
+  $time = timer_start($key);
   $GLOBALS['devel_theme_calls'][$key] = array(
     'name' => $hook,
     'type' => 'test',
@@ -224,6 +228,90 @@ function devel_themer_preprocess(&$variables,$hook) {
   // Set a key on content so we can identify it later
   $variables['attributes_array']['thmr'] = $key;
   
+}
+
+
+function devel_themer_preprocess_field(&$variables,$hook) {
+  devel_themer_preprocess($variables,$hook);
+}
+
+
+/*
+ * Implements hook_page_alter().
+ * Add pre and post render functions to elements in the page.
+ */
+
+function devel_themer_page_alter(&$page) {
+  $page['#pre_render'][] = "devel_themer_pre_render";
+   $page['#post_render'][] = "devel_themer_post_render";
+}
+
+// Pre processing of the item before Render
+function devel_themer_pre_render($elements) {
+//  var_dump(array_keys($elements));
+  $counter = devel_counter();
+  $key = "thmr_$counter";
+  $elements['#devel_themer']['key'] = $key;
+  
+  // Add pre and post render hooks to the child elements of this
+
+  // Direct Children
+  if (is_array($elements)) {
+    foreach(element_children($elements) as $child_key ) {
+      if(is_array($elements[$child_key])) {
+        $elements[$child_key]['#pre_render'][] = "devel_themer_pre_render";
+        $elements[$child_key]['#post_render'][] = "devel_themer_post_render";
+      }
+    } 
+  
+    // Elements Children
+    if (isset($elements['elements']) && is_array($elements['elements'])) {
+      foreach(element_children($elements['elements']) as $child_key ) {
+        if(is_array($elements[$child_key])) {
+          $elements['elements'][$child_key]['#pre_render'][] = "devel_themer_pre_render";
+          $elements['elements'][$child_key]['#post_render'][] = "devel_themer_post_render";
+        }
+      }
+    }
+    // Other???
+  }
+  else {
+    var_dump($elements);
+  }  
+  $time = timer_start($key);
+  $GLOBALS['devel_theme_calls'][$key] = array(
+    'name' => 'pre_render',
+    'type' => 'test',
+    'duration' => 0,
+    'used' => '',
+    'candidates' => array(),
+    'preprocessors' => array(),
+      );
+  $elements['#attributes']['thmr'] = $key;
+  
+  return $elements;
+}
+
+// Post processing, and clean up.
+function devel_themer_post_render($element_children,$elements) {
+ 
+  //var_dump($element_children);
+  if (isset($elements['#devel_themer'])) {
+    $key = $elements['#devel_themer']['key'];
+    $GLOBALS['devel_theme_calls'][$key]['duration'] = timer_stop($key);
+    $GLOBALS['devel_themer_server'][$key] = array(
+    'variables' => $elements,
+    'type' => 'test_type',
+    );
+  }
+ // This is weird but works.
+ if($element_children == "" && isset($elements['#markup'])) {
+    // In this case markup may have been added manually, add a span arround it.
+    return('<span thmr="' . $key .'">'. $elements['#markup'] . '</span>');  
+   
+  }
+  
+ return $element_children; 
 }
 
 function devel_themer_append_extension($string) {
