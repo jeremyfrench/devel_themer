@@ -167,22 +167,7 @@ function devel_themer_log() {
   }
 }
 
-// Would be nice if theme() broke this into separate function so we don't copy logic here. this one is better - has cache
-function devel_themer_get_extension() {
-  global $theme_engine;
-  static $extension = NULL;
 
-  if (!$extension) {
-    $extension_function = $theme_engine .'_extension';
-    if (function_exists($extension_function)) {
-      $extension = $extension_function();
-    }
-    else {
-      $extension = '.tpl.php';
-    }
-  }
-  return $extension;
-}
 
 /**
  * Intercepts all theme calls (including templates), adds to template log, and dispatches to original theme function.
@@ -223,8 +208,6 @@ function devel_themer_catch_function() {
   
   if (!empty($return) && !is_array($return) && !is_object($return) && user_access('access devel information')) {
 
-    
-    
       $key = "thmr_$counter";
       // This variable gets sent to the browser in Drupal.settings.
       $GLOBALS['devel_theme_calls'][$key] = array(
@@ -496,42 +479,6 @@ function devel_themer_theme_twin($hook,$variables) {
 
 
 
-function devel_themer_append_extension($string) {
-  return $string. devel_themer_get_extension();
-}
-
-/**
- * For  given theme *function* call, return the ancestry of function names which could have handled the call.
- * This mimics the way the theme registry is built.
- *
- * @param array
- *  A list of theme calls.
- * @return array()
- *   An array of function names.
- **/
-function devel_themer_ancestry($calls) {
-  global $theme, $theme_engine, $base_theme_info;
-  static $prefixes;
-  if (!isset($prefixes)) {
-    $prefixes[] = 'theme';
-    if (isset($base_theme_info)) {
-      foreach ($base_theme_info as $base) {
-        $prefixes[] = $base->name;
-      }
-    }
-    $prefixes[] = $theme_engine;
-    $prefixes[] = $theme;
-    $prefixes = array_filter($prefixes);
-  }
-
-  foreach ($calls as $call) {
-    foreach ($prefixes as $prefix) {
-      $candidates[] = $prefix. '_'. $call;
-    }
-  }
-  return array_reverse($candidates);
-}
-
 // We save the huge js array here instead of hook_footer so we can catch theme('page')
 function devel_themer_exit() {
   // TODO: limit to html pages only $router_item = menu_get_item();
@@ -553,11 +500,6 @@ function devel_themer_exit() {
     $GLOBALS['devel_theme_calls']['devel_themer_uri'] = url("devel_themer/variables/$request_id");
     print '<script type="text/javascript">jQuery.extend(Drupal.settings, '.  drupal_json_encode($GLOBALS['devel_theme_calls']) .");</script>\n";
   }
-}
-
-function devel_theme_call_marker($name, $counter, $type) {
-  $id = "thmr_". $counter;
-  return array("<span id=\"$id\" class=\"thmr_call\">", "</span>\n");
 }
 
 // just hand out next counter, or return current value
