@@ -50,11 +50,11 @@
       .click(themerToggle);
 
     $('#themer-popup')
-      // .draggable({
-      //         opacity: .6,
-      //         handle: $('#themer-popup .topper')
-      //       })
-      //.prepend(strs.toggle_throbber)
+       .draggable({
+               opacity: .6,
+               handle: $('#themer-popup .topper')
+             })
+      .prepend(strs.toggle_throbber)
     ;
 
     // close box
