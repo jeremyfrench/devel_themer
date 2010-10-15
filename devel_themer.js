@@ -7,7 +7,7 @@
     thmrSpanified = false;
     strs = Drupal.settings.thmrStrings;
     $('body').addClass("thmr_call").attr("id", "thmr_" + Drupal.settings.page_id);
-    $('body.thmr_call,span.thmr_call')
+    $('[thmr]')
     .hover(
       function () {
         if (themerEnabled && this.parentNode.nodeName != 'BODY' && $(this).attr('thmr_curr') != 1) {
@@ -91,7 +91,7 @@
   }
 
   function spanify() {
-    $('[thmr]')
+    $('span[thmr]')
       .each(function () {
         // make spans around block elements into block elements themselves
         var kids = $(this).children();
@@ -225,6 +225,7 @@
       // make them clickable
       $('#'+ $(this).attr('trig')).each(function() { themerDoIt(this) });
     })
+    
     .hover(function() {
         // make them highlight their element on mouseover
         $('#'+ $(this).attr('trig')).trigger('mouseover');
@@ -245,16 +246,15 @@
     else {
       $('#themer-popup div.duration').empty().prepend('<span class="dt">' + strs.duration + '</span>' + vars.duration + ' ms');
       $('#themer-popup dd.candidates').empty().prepend(vars.candidates.join('<span class="delimiter"> < </span>'));
+
+      // TODO, notify about misbehaving theme methods.
       
       // Use drupal ajax to do what we need 
-      
-      
-      
       uri = Drupal.settings.devel_themer_uri + '/' + id;
       vars_div_array = $('div.themer-variables');
       vars_div = vars_div_array[0];
       
-      // Programatically using the drupal ajax things is tricky, so cheet.
+      // Programatically using the drupal ajax things is tricky, so cheat.
       dummy_link = $('<a href="'+uri+'" class="use-ajax">Loading Vars</a>');
       $(vars_div).append(dummy_link);
       Drupal.attachBehaviors(vars_div);
