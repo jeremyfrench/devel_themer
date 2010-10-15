@@ -201,6 +201,7 @@ function devel_themer_catch_function() {
   
   $counter = devel_counter();
   $variables['thmr_key'] = "thmr_" . $counter;
+  $variables['attributes']['thmr'] = "thmr_" . $counter;
   $timer_name = "thmr_$counter";
   timer_start($timer_name);
   
@@ -210,7 +211,16 @@ function devel_themer_catch_function() {
   
   if (!empty($return) && !is_array($return) && !is_object($return) && user_access('access devel information')) {
 
+      
       $key = "thmr_$counter";
+      
+      // Check for themer attribute in content returned
+      if (!strpos($return,$key)) {
+        // var_dump($hook);
+        // TODO exclude some hooks here. 
+        $return = '<span thmr="'.$key.'">' .$return. '</span>';
+      }
+      
       // This variable gets sent to the browser in Drupal.settings.
       $GLOBALS['devel_theme_calls'][$key] = array(
         'name' => $meta['hook'],
@@ -226,8 +236,7 @@ function devel_themer_catch_function() {
         'variables' => $meta['variables'],
         'type' => $meta['type'],
       );
-    //  unset($meta['variables']);
-      //var_dump($meta);
+      
     }
     else {
       $output = $return;
