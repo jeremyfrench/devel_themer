@@ -95,6 +95,7 @@ function devel_themer_admin_settings() {
 
 function devel_themer_init() {
   if (user_access('access devel information')) {
+    $base_path = base_path();    
     $path = drupal_get_path('module', 'devel_themer');
     $path_to_devel = drupal_get_path('module', 'devel');
     // we inject our HTML after page has loaded we have to add this manually.
@@ -104,7 +105,7 @@ function devel_themer_init() {
     }
     drupal_add_css($path .'/devel_themer.css');
     drupal_add_js($path .'/devel_themer.js');
-    drupal_add_js('/misc/ajax.js');
+    drupal_add_js($base_path . 'misc/ajax.js');
     drupal_add_library('system','ui.draggable');
     
     // This needs to happen after all the other CSS.
@@ -178,10 +179,11 @@ function devel_themer_theme_registry_alter(&$theme_registry) {
     if (isset($theme_registry[$hook]['function'])) {
       // If the hook is a function, store it so it can be run after it has been intercepted.
       // This does not apply to template calls.
+      
       $theme_registry[$hook]['devel_function_intercept'] = $theme_registry[$hook]['function'];
     }
     // Add our catch function to intercept functions as well as templates.
- //   $theme_registry[$hook]['function'] = 'devel_themer_catch_function';
+    $theme_registry[$hook]['function'] = 'devel_themer_catch_function';
   }
 }
 
@@ -481,6 +483,7 @@ function devel_themer_theme_twin($hook,$variables) {
 
 // We save the huge js array here instead of hook_footer so we can catch theme('page')
 function devel_themer_exit() {
+  
   // TODO: limit to html pages only $router_item = menu_get_item();
   //delivery_callback
   if (!empty($GLOBALS['devel_theme_calls']) && $_SERVER['REQUEST_METHOD'] != 'POST') {

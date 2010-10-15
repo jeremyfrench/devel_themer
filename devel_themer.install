@@ -31,3 +31,4 @@ function devel_themer_update_6001() {
   db_drop_table($ret, 'cache_devel_themer');
   return $ret;
 }
+
