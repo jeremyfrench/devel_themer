@@ -221,14 +221,54 @@ function devel_themer_catch_function() {
         $return = '<span thmr="'.$key.'">' .$return. '</span>';
       }
       
+      if ($meta['type'] == 'func') {
+        $name = $meta['name'];
+        $used = $meta['used'];
+        if (empty($meta['wildcards'])) {
+          $meta['wildcards'] = array($hook);
+        }  
+        $candidates = $meta['wildcards'];
+        if (empty($meta['variables'])) {
+          $variables = array();
+        }
+      }
+      else {
+        $name = $meta['name'];
+        if (empty($suggestions)) {
+          array_unshift($meta['suggestions'], $meta['used']);
+        }
+        $candidates = array_reverse($meta['suggestions']);
+        $used = $meta['used'];
+       
+      }
+    
+      
+      // Set preprocessors.
+      if (isset($meta['processor_functions']['preprocess functions'])) {
+        $preprocessors = $meta['processor_functions']['preprocess functions'];
+      }
+      else {
+        $preprocessors = array();
+      }
+
+      // Set processors.
+      if (isset($meta['processor_functions']['process functions'])) {
+        $processors = $meta['processor_functions']['process functions'];
+      }
+      else {
+        $processors = array();
+      }
+      
       // This variable gets sent to the browser in Drupal.settings.
       $GLOBALS['devel_theme_calls'][$key] = array(
-        'name' => $meta['used'],
+        'id' => $key,
+        'name' => $name,
+        'used' => $used,
         'type' => $meta['type'],
         'duration' => $time['time'],
-        'used' => $meta['used'],
-        'candidates' => isset($meta['suggestions']) ? $meta['suggestions'] : array(),
-        'preprocessors' => isset($meta['preprocessors']) ? $meta['preprocessors'] : array(),
+        'candidates' => $candidates,
+        'preprocessors' => $preprocessors,
+        'processors' => $processors,
       );
       
       // This variable gets serialized and cached on the server.
@@ -252,6 +292,7 @@ function devel_themer_theme_twin($hook,$variables) {
   $thmr_key = $variables['thmr_key'];
   unset($variables['thmr_key']);
   $meta = array();
+  $meta['name'] = $hook;
   
   // If called before all modules are loaded, we do not necessarily have a full
   // theme registry to work with, and therefore cannot process the theme
@@ -269,12 +310,12 @@ function devel_themer_theme_twin($hook,$variables) {
   // implementation.
   if (is_array($hook)) {
     foreach ($hook as $candidate) {
-      $meta['wildcards'][$candidate] = FALSE;
+      
       
       if (isset($hooks[$candidate])) {
-        $meta['wildcards'][$candidate] = TRUE;
         break;
       }
+      $meta['wildcards'][] = $candidate;
     }
     $hook = $candidate;
   }
@@ -286,11 +327,10 @@ function devel_themer_theme_twin($hook,$variables) {
     // implementation is found.
     while ($pos = strrpos($hook, '__')) {
       $hook = substr($hook, 0, $pos);
-      $meta['wildcards'][$hook] = FALSE;
       if (isset($hooks[$hook])) {
-        $meta['wildcards'][$hook] = TRUE;
         break;
       }
+      $meta['wildcards'] = $hook;
     }
     if (!isset($hooks[$hook])) {
       // Only log a message when not trying theme suggestions ($hook being an
@@ -540,6 +580,7 @@ function devel_themer_popup() {
       'template_called' => t('Template called: '),
       'candidate_files' => t('Candidate template files: '),
       'preprocessors' => t('Preprocess functions: '),
+      'processors' => t('Process functions'),
       'candidate_functions' => t('Candidate function names: '),
       'drupal_api_docs' => t('link to Drupal API documentation'),
       'source_link_title' => t('link to source code'),
@@ -590,7 +631,12 @@ function devel_themer_popup() {
           <dd class="preprocessors">
 
           </dd>
+          <dd class="processors-type">
 
+          </dd>
+          <dd class="processors">
+
+          </dd>
           <div class="duration"></div>
         </dl>
       </div><!-- /info -->

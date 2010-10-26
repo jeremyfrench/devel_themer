@@ -192,7 +192,7 @@
     // strs is the translatable strings
     var strs = Drupal.settings.thmrStrings;
     var type = vars.type;
-    var key = vars.name;
+    var key = vars.used;
 
     // clear out the initial "click on any element" starter text
     $('#themer-popup div.starter').empty();
@@ -212,20 +212,21 @@
     var parents = '';
     parents = strs.parents +' <span class="parents">';
     for(i=1;i<objs.length;i++) {
-      var pvars = Drupal.settings[$(objs[i]).attr('thmr')];
+      var id = $(objs[i]).attr('thmr')
+      var pvars = Drupal.settings[id];
       parents += i!=1 ? '&lt; ' : '';
       // populate the parents
       // each parent is wrapped with a span containing a 'trig' attribute with the id of the element it represents
-      parents += '<span class="parent" trig="'+ objs[i].id +'">'+ pvars.name +'</span> ';
+      parents += '<span class="parent" trig="'+ id +'">'+ pvars.name +'</span> ';
     }
     parents += '</span>';
     // stick the parents spans in the #parents div
     $('#themer-popup #parents').empty().prepend(parents);
     $('#themer-popup span.parent').click(function() {
-      // make them clickable
-      $('#'+ $(this).attr('trig')).each(function() { themerDoIt(this) });
-    })
-    
+    	  thmr_id = $(this).attr('thmr');
+    	  alert("thmr_id");
+    	  thmr_obj = $("['thmr' = "+thmr_id+"]")[0];
+    	  themerDoIt(thmr_obj); })
     .hover(function() {
         // make them highlight their element on mouseover
         $('#'+ $(this).attr('trig')).trigger('mouseover');
@@ -246,8 +247,20 @@
     else {
       $('#themer-popup div.duration').empty().prepend('<span class="dt">' + strs.duration + '</span>' + vars.duration + ' ms');
       $('#themer-popup dd.candidates').empty().prepend(vars.candidates.join('<span class="delimiter"> < </span>'));
+      $('#themer-popup dd.preprocessors').empty().prepend(vars.preprocessors.join('<span class="delimiter"> + </span>'));
+      $('#themer-popup dt.preprocessors-type').empty().prepend(strs.preprocessors);
+      $('#themer-popup dd.processors').empty().prepend(vars.processors.join('<span class="delimiter"> + </span>'));
+      $('#themer-popup dt.processors-type').empty().prepend(strs.processors);
 
-      // TODO, notify about misbehaving theme methods.
+      var uri = Drupal.settings.devel_themer_uri + '/' + id;
+      if (type == 'func') {
+          // populate the candidates
+          $('#themer-popup dt.candidates-type').empty().prepend(strs.candidate_functions);
+      }
+      else {
+        $('#themer-popup dt.candidates-type').empty().prepend(strs.candidate_files);
+      }
+
       
       // Use drupal ajax to do what we need 
       uri = Drupal.settings.devel_themer_uri + '/' + id;
