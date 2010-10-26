@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Implementation of hook_menu().
+ * Implements hook_menu().
  */
 function devel_themer_menu() {
   $items = array();
@@ -61,13 +61,12 @@ function devel_themer_ajax_variables($request_id, $call) {
     else {
       $content =  $variables;
     }
-    
   }
   else {
-     $content =  'Ajax variables file not found. -'. check_plain($file);
+    $content =  'Ajax variables file not found. -' . check_plain($file);
   }
 
-  $commands[] = ajax_command_replace('div.themer-variables','<div class="themer-variables">' . $content . '</div>');
+  $commands[] = ajax_command_replace('div.themer-variables', '<div class="themer-variables">' . $content . '</div>');
   return array('#type' => 'ajax', '#commands' => $commands);
 }
 
@@ -95,22 +94,22 @@ function devel_themer_admin_settings() {
 
 function devel_themer_init() {
   if (user_access('access devel information')) {
-    $base_path = base_path();    
+    $base_path = base_path();
     $path = drupal_get_path('module', 'devel_themer');
     $path_to_devel = drupal_get_path('module', 'devel');
     // we inject our HTML after page has loaded we have to add this manually.
     if (has_krumo()) {
-      drupal_add_js($path_to_devel. '/krumo/krumo.js');
-      drupal_add_css($path_to_devel. '/krumo/skins/default/skin.css');
+      drupal_add_js($path_to_devel . '/krumo/krumo.js');
+      drupal_add_css($path_to_devel . '/krumo/skins/default/skin.css');
     }
-    drupal_add_css($path .'/devel_themer.css');
-    drupal_add_js($path .'/devel_themer.js');
+    drupal_add_css($path . '/devel_themer.css');
+    drupal_add_js($path . '/devel_themer.js');
     drupal_add_js($base_path . 'misc/ajax.js');
-    drupal_add_library('system','ui.draggable');
-    
+    drupal_add_library('system', 'ui.draggable');
+
     // This needs to happen after all the other CSS.
     drupal_add_css('<!--[if IE]>
-    <link href="' . $path .'/devel_themer_ie_fix.css" rel="stylesheet" type="text/css" media="screen" />
+    <link href="' . $path . '/devel_themer_ie_fix.css" rel="stylesheet" type="text/css" media="screen" />
 <![endif]-->', array('type' => 'inline'));
     devel_themer_popup();
 
@@ -127,6 +126,7 @@ function devel_themer_shutdown() {
 /**
  * Show all theme templates and functions that could have been used on this page.
  **/
+
 function devel_themer_log() {
   if (isset($GLOBALS['devel_theme_calls'])) {
     foreach ($GLOBALS['devel_theme_calls'] as $counter => $call) {
@@ -137,7 +137,7 @@ function devel_themer_log() {
 
         $used = $call['used'];
         if ($call['type'] == 'func') {
-          $name = $call['name']. '()';
+          $name = $call['name'] . '()';
           foreach ($call['candidates'] as $item) {
             if ($item == $used) {
               $items[] = "<strong>$used</strong>";
@@ -158,7 +158,7 @@ function devel_themer_log() {
             }
           }
         }
-        $rows[] = array($call['duration'], $marker. $name, implode(', ', $items));
+        $rows[] = array($call['duration'], $marker . $name, implode(', ', $items));
         unset($items);
       }
     }
@@ -179,7 +179,6 @@ function devel_themer_theme_registry_alter(&$theme_registry) {
     if (isset($theme_registry[$hook]['function'])) {
       // If the hook is a function, store it so it can be run after it has been intercepted.
       // This does not apply to template calls.
-      
       $theme_registry[$hook]['devel_function_intercept'] = $theme_registry[$hook]['function'];
     }
     // Add our catch function to intercept functions as well as templates.
@@ -190,110 +189,103 @@ function devel_themer_theme_registry_alter(&$theme_registry) {
 function devel_themer_catch_function() {
   $trace = debug_backtrace(FALSE);
   $hook = $trace[1]['args'][0];
-  if(sizeof($trace[1]['args']) > 1) {
+  if (sizeof($trace[1]['args']) > 1) {
     $variables =  $trace[1]['args'][1];
   }
   else {
     $variables = array();
-  } 
+  }
 
-  
-  
   $counter = devel_counter();
   $variables['thmr_key'] = "thmr_" . $counter;
   $variables['attributes']['thmr'] = "thmr_" . $counter;
   $timer_name = "thmr_$counter";
   timer_start($timer_name);
-  
-    // The twin of theme(). All rendering done through here.
-  list($return, $meta) = devel_themer_theme_twin($hook,$variables);
+
+  // The twin of theme(). All rendering done through here.
+  list($return, $meta) = devel_themer_theme_twin($hook, $variables);
   $time = timer_stop($timer_name);
-  
+
   if (!empty($return) && !is_array($return) && !is_object($return) && user_access('access devel information')) {
+    $key = "thmr_$counter";
 
-      
-      $key = "thmr_$counter";
-      
-      // Check for themer attribute in content returned
-      if (!strpos($return,$key)) {
-        // var_dump($hook);
-        // TODO exclude some hooks here. 
-        $return = '<span thmr="'.$key.'">' .$return. '</span>';
-      }
-      
-      if ($meta['type'] == 'func') {
-        $name = $meta['name'];
-        $used = $meta['used'];
-        if (empty($meta['wildcards'])) {
-          $meta['wildcards'] = array($hook);
-        }  
-        $candidates = $meta['wildcards'];
-        if (empty($meta['variables'])) {
-          $variables = array();
-        }
-      }
-      else {
-        $name = $meta['name'];
-        if (empty($suggestions)) {
-          array_unshift($meta['suggestions'], $meta['used']);
-        }
-        $candidates = array_reverse($meta['suggestions']);
-        $used = $meta['used'];
-       
-      }
-    
-      
-      // Set preprocessors.
-      if (isset($meta['processor_functions']['preprocess functions'])) {
-        $preprocessors = $meta['processor_functions']['preprocess functions'];
-      }
-      else {
-        $preprocessors = array();
-      }
+    // Check for themer attribute in content returned
+    if (!strpos($return, $key)) {
+       // TODO exclude some hooks here.
+      $return = '<span thmr="' . $key . '">' . $return . '</span>';
+    }
 
-      // Set processors.
-      if (isset($meta['processor_functions']['process functions'])) {
-        $processors = $meta['processor_functions']['process functions'];
+    if ($meta['type'] == 'func') {
+      $name = $meta['name'];
+      $used = $meta['used'];
+      if (empty($meta['wildcards'])) {
+        $meta['wildcards'] = array($hook);
       }
-      else {
-        $processors = array();
+      $candidates = $meta['wildcards'];
+      if (empty($meta['variables'])) {
+        $variables = array();
       }
-      
-      // This variable gets sent to the browser in Drupal.settings.
-      $GLOBALS['devel_theme_calls'][$key] = array(
-        'id' => $key,
-        'name' => $name,
-        'used' => $used,
-        'type' => $meta['type'],
-        'duration' => $time['time'],
-        'candidates' => $candidates,
-        'preprocessors' => $preprocessors,
-        'processors' => $processors,
-      );
-      
-      // This variable gets serialized and cached on the server.
-      $GLOBALS['devel_themer_server'][$key] = array(
-        'variables' => $meta['variables'],
-        'type' => $meta['type'],
-      );
-      
     }
     else {
-      $output = $return;
+      $name = $meta['name'];
+      if (empty($suggestions)) {
+        array_unshift($meta['suggestions'], $meta['used']);
+      }
+      $candidates = array_reverse($meta['suggestions']);
+      $used = $meta['used'];
     }
- 
 
+
+    // Set preprocessors.
+    if (isset($meta['processor_functions']['preprocess functions'])) {
+      $preprocessors = $meta['processor_functions']['preprocess functions'];
+    }
+    else {
+      $preprocessors = array();
+    }
+
+    // Set processors.
+    if (isset($meta['processor_functions']['process functions'])) {
+      $processors = $meta['processor_functions']['process functions'];
+    }
+    else {
+      $processors = array();
+    }
+
+    // This variable gets sent to the browser in Drupal.settings.
+    $GLOBALS['devel_theme_calls'][$key] = array(
+      'id' => $key,
+      'name' => $name,
+      'used' => $used,
+      'type' => $meta['type'],
+      'duration' => $time['time'],
+      'candidates' => $candidates,
+      'preprocessors' => $preprocessors,
+      'processors' => $processors,
+    );
+
+    // Remove some things from variables to reduce size of item in crumo
+    unset($meta['variables']['page']);
+
+    // This variable gets serialized and cached on the server.
+    $GLOBALS['devel_themer_server'][$key] = array(
+      'variables' => $meta['variables'],
+      'type' => $meta['type'],
+    );
+  }
+  else {
+    $output = $return;
+  }
   return isset($output) ? $output : $return;
 }
 
-function devel_themer_theme_twin($hook,$variables) {  
-  
+function devel_themer_theme_twin($hook, $variables) {
   static $hooks = NULL;
   $thmr_key = $variables['thmr_key'];
   unset($variables['thmr_key']);
   $meta = array();
   $meta['name'] = $hook;
-  
+
   // If called before all modules are loaded, we do not necessarily have a full
   // theme registry to work with, and therefore cannot process the theme
   // request properly. See also _theme_load_registry().
@@ -310,8 +302,6 @@ function devel_themer_theme_twin($hook,$variables) {
   // implementation.
   if (is_array($hook)) {
     foreach ($hook as $candidate) {
-      
-      
       if (isset($hooks[$candidate])) {
         break;
       }
@@ -319,7 +309,7 @@ function devel_themer_theme_twin($hook,$variables) {
     }
     $hook = $candidate;
   }
-  
+
   // If there's no implementation, check for more generic fallbacks. If there's
   // still no implementation, log an error and return an empty string.
   if (!isset($hooks[$hook])) {
@@ -345,8 +335,8 @@ function devel_themer_theme_twin($hook,$variables) {
   $meta['hook'] = $hook;
   $info = $hooks[$hook];
   $meta['path'] = $info['theme path'];
-  
-  
+
+
   global $theme_path;
   $temp = $theme_path;
   // point path_to_theme() to the currently used theme path:
@@ -383,12 +373,10 @@ function devel_themer_theme_twin($hook,$variables) {
   elseif (!empty($info['render element'])) {
     $variables += array($info['render element'] => array());
   }
-  
-  // Add the themer attribute here 
+
+  // Add the themer attribute here
   $variables['attributes_array']['thmr'] = $thmr_key;
-  
-  // TODO: add the preprocessors to the devel_themer meta information.
-  
+
   // Invoke the variable processors, if any. The processors may specify
   // alternate suggestions for which hook's template/function to use. If the
   // hook is a suggestion of a base hook, invoke the variable processors of
@@ -408,7 +396,7 @@ function devel_themer_theme_twin($hook,$variables) {
     foreach (array('preprocess functions', 'process functions') as $phase) {
       if (!empty($info[$phase])) {
         foreach ($info[$phase] as $processor_function) {
-          $meta['processor_functions'][$phase][] = $processor_function; 
+          $meta['processor_functions'][$phase][] = $processor_function;
           if (function_exists($processor_function)) {
             // We don't want a poorly behaved process function changing $hook.
             $hook_clone = $hook;
@@ -443,7 +431,7 @@ function devel_themer_theme_twin($hook,$variables) {
       }
     }
   }
-  
+
   // Tidy up the theme things here.
   if (isset($info)) {
     unset($info['function']);
@@ -505,22 +493,18 @@ function devel_themer_theme_twin($hook,$variables) {
     }
     $meta['type'] = 'tpl';
     $meta['used'] = $template_file;
-    
+
     $meta['suggestions'] = $suggestions;
     $meta['template_file'] = $template_file;
     $meta['preprocessors'] = $info['preprocess functions'];
-    
+
     $output = $render_function($template_file, $variables);
   }
   $meta['variables'] = $variables;
 
-  
   // restore path_to_theme()
   $theme_path = $temp;
-
-  
-  
-  return array($output,$meta);
+  return array($output, $meta);
 }
 
 /*
@@ -528,11 +512,8 @@ function devel_themer_theme_twin($hook,$variables) {
  * Add pre and post render functions to elements in the page.
  */
 
-
-
 // We save the huge js array here instead of hook_footer so we can catch theme('page')
 function devel_themer_exit() {
-  
   // TODO: limit to html pages only $router_item = menu_get_item();
   //delivery_callback
   if (!empty($GLOBALS['devel_theme_calls']) && $_SERVER['REQUEST_METHOD'] != 'POST') {
@@ -542,15 +523,15 @@ function devel_themer_exit() {
     // We used to write this to DB but was getting 'Warning: Got a packet bigger than 'max_allowed_packet' bytes'
     // Writing to temp dir means we don't worry about folder existence/perms and cleanup is free.
     try {
-     file_save_data(serialize($GLOBALS['devel_themer_server']),"temporary://devel_themer_$request_id",FILE_EXISTS_REPLACE); 
+      file_save_data(serialize($GLOBALS['devel_themer_server']), "temporary://devel_themer_$request_id", FILE_EXISTS_REPLACE);
     }
-    catch(Exception $e) {
-     file_save_data(serialize(array("unables to save variables, probably due to pdo")),"temporary://devel_themer_$request_id",FILE_EXISTS_REPLACE); 
+    catch (Exception $e) {
+      file_save_data(serialize(array("unables to save variables, probably due to pdo")), "temporary://devel_themer_$request_id", FILE_EXISTS_REPLACE);
     }
-    
+
     $GLOBALS['devel_theme_calls']['request_id'] = $request_id;
     $GLOBALS['devel_theme_calls']['devel_themer_uri'] = url("devel_themer/variables/$request_id");
-    print '<script type="text/javascript">jQuery.extend(Drupal.settings, '.  drupal_json_encode($GLOBALS['devel_theme_calls']) .");</script>\n";
+    print '<script type="text/javascript">jQuery.extend(Drupal.settings, ' .  drupal_json_encode($GLOBALS['devel_theme_calls']) . ");</script>\n";
   }
 }
 
@@ -631,9 +612,9 @@ function devel_themer_popup() {
           <dd class="preprocessors">
 
           </dd>
-          <dd class="processors-type">
+          <dt class="processors-type">
 
-          </dd>
+          </dt>
           <dd class="processors">
 
           </dd>

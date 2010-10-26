@@ -224,7 +224,6 @@
     $('#themer-popup #parents').empty().prepend(parents);
     $('#themer-popup span.parent').click(function() {
     	  thmr_id = $(this).attr('thmr');
-    	  alert("thmr_id");
     	  thmr_obj = $("['thmr' = "+thmr_id+"]")[0];
     	  themerDoIt(thmr_obj); })
     .hover(function() {
