@@ -223,7 +223,7 @@ function devel_themer_catch_function() {
       
       // This variable gets sent to the browser in Drupal.settings.
       $GLOBALS['devel_theme_calls'][$key] = array(
-        'name' => $meta['hook'],
+        'name' => $meta['used'],
         'type' => $meta['type'],
         'duration' => $time['time'],
         'used' => $meta['used'],
@@ -368,6 +368,7 @@ function devel_themer_theme_twin($hook,$variables) {
     foreach (array('preprocess functions', 'process functions') as $phase) {
       if (!empty($info[$phase])) {
         foreach ($info[$phase] as $processor_function) {
+          $meta['processor_functions'][$phase][] = $processor_function; 
           if (function_exists($processor_function)) {
             // We don't want a poorly behaved process function changing $hook.
             $hook_clone = $hook;
@@ -419,8 +420,7 @@ function devel_themer_theme_twin($hook,$variables) {
     if (function_exists($info['function'])) {
       $output = $info['function']($variables);
       $meta['type'] = 'func';
-      $meta['used'] = $info['devel_function_intercept'];
-      
+      $meta['used'] = $info['function'];
     }
   }
   else {
