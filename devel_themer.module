@@ -531,7 +531,7 @@ function devel_themer_exit() {
 
     $GLOBALS['devel_theme_calls']['request_id'] = $request_id;
     $GLOBALS['devel_theme_calls']['devel_themer_uri'] = url("devel_themer/variables/$request_id");
-    print '<script type="text/javascript">jQuery.extend(Drupal.settings, ' .  drupal_json_encode($GLOBALS['devel_theme_calls']) . ");</script>\n";
+    print '<script type="text/javascript">jQuery.extend(Drupal.settings, ' . drupal_json_encode($GLOBALS['devel_theme_calls']) . ");</script>\n";
   }
 }
 
@@ -555,20 +555,20 @@ function devel_themer_popup() {
   drupal_add_js(array('thmrStrings' =>
     array(
       'themer_info' => t('Themer info'),
-      'toggle_throbber' => ' <img src="'. base_path() . drupal_get_path('module', 'devel'). '/loader-little.gif' .'" alt="'. t('loading') .'" class="throbber" width="16" height="16" style="display:none" />',
-      'parents' => t('Parents: '),
-      'function_called' => t('Function called: '),
-      'template_called' => t('Template called: '),
-      'candidate_files' => t('Candidate template files: '),
-      'preprocessors' => t('Preprocess functions: '),
-      'processors' => t('Process functions'),
-      'candidate_functions' => t('Candidate function names: '),
+      'toggle_throbber' => ' <img src="' . base_path() . drupal_get_path('module', 'devel') . '/loader-little.gif' . '" alt="' . t('loading') . '" class="throbber" width="16" height="16" style="display:none" />',
+      'parents' => t('Parents:') . ' ',
+      'function_called' => t('Function called:') . ' ',
+      'template_called' => t('Template called:') . ' ',
+      'candidate_files' => t('Candidate template files:') . ' ',
+      'preprocessors' => t('Preprocess functions:') . ' ',
+      'processors' => t('Process functions:') . ' ',
+      'candidate_functions' => t('Candidate function names:') . ' ',
       'drupal_api_docs' => t('link to Drupal API documentation'),
       'source_link_title' => t('link to source code'),
       'function_arguments' => t('Function Arguments'),
       'template_variables' => t('Template Variables'),
-      'file_used' => t('File used: '),
-      'duration' => t('Duration: '),
+      'file_used' => t('File used:') . ' ',
+      'duration' => t('Duration:') . ' ',
       'api_site' => variable_get('devel_api_site', 'http://api.drupal.org/'),
       'drupal_version' => $majorver,
       'source_link' => url('devel/source', array('query' => array('file' => ''))),
@@ -643,7 +643,8 @@ EOT;
  *   void.
  */
 function devel_themer_cleanup() {
-  foreach (array_keys(file_scan_directory('temporary://', '/^devel_themer_/', array('.', '..', 'CVS'), 0, FALSE)) as $file) {
+  $scan = file_scan_directory('temporary://', '/^devel_themer_/', array('recurse' => FALSE));
+  foreach (array_keys($scan) as $file) {
     $fid = db_query('SELECT fid FROM {file_managed} WHERE uri = :uri', array(':uri' => "temporary://$file"))->fetchField();
     if (!empty($fid)) {
       file_delete($file);
@@ -653,7 +654,7 @@ function devel_themer_cleanup() {
 
 /**
  * Implement hook_cron() for periodic cleanup.
- * 
+ *
  * @return
  *   void.
  */
