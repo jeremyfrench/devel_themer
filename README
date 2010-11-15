@@ -2,6 +2,7 @@ DEVEL_THEMER
 
 This is a branch of the devel themer module, it is an attempt to get the theme_developer module working in drupal7.
 
-THIS will in the next few days be posted back to D.org and issues should be raised and tracked there. There are still a number
-of bugs to be worked through. 
+I am now activly developing the devel_themer module on Drupal.org this branch may be used for some experimental 
+features but in most cases you will want the bild from there, not the code from here,
 
+please see http://drupal.org/project/devel_themer
